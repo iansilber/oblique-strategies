@@ -555,8 +555,10 @@ function pose(t) {
 
   // card: rise out of the box, stand up with its back to you, then fly forward and turn
   // The lid lands at t = 1.2; the card waits half a second before it starts to rise.
-  const c2 = placeCard(card, t, CARD_IN, info ? 0 : -1);
-  if (info) placeCard(card2, t - 0.18, CARD_IN2, 1);
+  // Info draw: whichever card is behind travels first and lies underneath, so the pair goes back without crossing.
+  const flipped = info && swap.target === 1;
+  let c2 = placeCard(card, flipped ? t - 0.18 : t, flipped ? CARD_IN2 : CARD_IN, info ? 0 : -1);
+  if (info) c2 = Math.max(c2, placeCard(card2, flipped ? t : t - 0.18, flipped ? CARD_IN : CARD_IN2, 1));
   dimLayer.material.opacity = c2;
   document.body.classList.toggle("lit", c2 > 0.5);
 
