@@ -2,9 +2,9 @@
 // plus a panel for the knobs that aren't on the timeline. Edits write straight into ANIM and CUES.
 import { createDialKit, createDialRoot, createDialTimeline, createDialTimelineRoot } from "./vendor/dialkit/dialkit.js";
 
-const css = document.createElement("link");
-css.rel = "stylesheet"; css.href = new URL("./vendor/dialkit/styles.css", import.meta.url).href;
-document.head.append(css);
+// Inlined as a <style> rather than a <link> so it also loads where only scripts may come from files.
+fetch(new URL("./vendor/dialkit/styles.css", import.meta.url)).then((r) => r.text())
+  .then((text) => document.head.append(Object.assign(document.createElement("style"), { textContent: text })));
 
 // Same spring maths as DialKit's own preview, so a spring curve looks the same here as in the dock.
 function springParams(s) {
