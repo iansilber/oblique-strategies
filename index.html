@@ -53,8 +53,6 @@ canvas#stage.drag { cursor: grabbing; }
 }
 #music-toggle .pause, #music-toggle[aria-pressed="true"] .play { display: none; }
 #music-toggle[aria-pressed="true"] .pause { display: block; }
-#mute .off, #mute[aria-pressed="true"] .on { display: none; }
-#mute[aria-pressed="true"] .off { display: block; }
 #purchase {
   position: fixed; z-index: 2;
   right: max(16px, calc(env(safe-area-inset-right, 0px) + 16px));
@@ -77,10 +75,6 @@ body.lit .controls button, body.lit #purchase { color: #d8d7d1; }
   <button id="music-toggle" type="button" aria-pressed="false" aria-label="Play music" title="Play music">
     <svg class="play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>
     <svg class="pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6v12M15 6v12"/></svg>
-  </button>
-  <button id="mute" type="button" aria-pressed="false" aria-label="Mute sound" title="Mute sound">
-    <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
-    <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>
   </button>
   <button id="info" type="button" aria-label="About the cards" title="About the cards">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/></svg>
@@ -573,15 +567,13 @@ const CUES = [
   { t: 0, dir: 1, s: "lid-lift" }, { t: 1.6, dir: 1, s: "card-out" }, { t: 1.05, dir: 1, s: "lid-down" },
   { t: 2.05, dir: -1, s: "card-back" }, { t: 1.45, dir: -1, s: "lid-pickup" }, { t: 1.68, dir: -1, s: "lid-close" },
 ];
-let audio = null, muted = false, musicRouted = false;
+let audio = null, musicRouted = false;
 const buffers = {};
 // Download the clips up front so the first click can play them at once.
 const raw = Object.fromEntries(Object.keys(SOUNDS).map((n) => [n, fetch(`sounds2/${n}.mp3`).then((r) => r.arrayBuffer()).catch(() => null)]));
-try { muted = localStorage.getItem("muted") === "1"; } catch (e) {}
 const music = document.getElementById("music");
 const musicBtn = document.getElementById("music-toggle");
 const musicStatus = document.getElementById("music-status");
-const muteBtn = document.getElementById("mute");
 function showMusicState() {
   const playing = !music.paused;
   musicBtn.setAttribute("aria-pressed", String(playing));
@@ -593,21 +585,10 @@ music.addEventListener("pause", showMusicState);
 musicBtn.addEventListener("click", async () => {
   musicStatus.textContent = "";
   if (!music.paused) { music.pause(); return; }
-  // Explicit playback also restores sound if the visitor previously muted it.
-  muted = false;
-  showMute();
   startAudio();
-  try { localStorage.setItem("muted", "0"); } catch (e) {}
   try { await music.play(); }
   catch (e) { musicStatus.textContent = "Music could not play. Please try again."; }
   showMusicState();
-});
-function showMute() { music.muted = muted; muteBtn.setAttribute("aria-pressed", muted); muteBtn.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound"); muteBtn.title = muteBtn.getAttribute("aria-label"); }
-showMute();
-muteBtn.addEventListener("click", () => {
-  muted = !muted; showMute();
-  try { localStorage.setItem("muted", muted ? "1" : "0"); } catch (e) {}
-  if (!muted) startAudio();
 });
 function startAudio() {
   if (audio) { if (audio.state === "suspended") audio.resume(); return; }
@@ -626,7 +607,7 @@ function routeMusic() {
   } catch (e) { music.volume = MUSIC_LEVEL; }
 }
 function play(name) {
-  if (muted || !audio || !buffers[name]) return;
+  if (!audio || !buffers[name]) return;
   const asked = performance.now();
   buffers[name].then((buf) => { if (buf && performance.now() - asked < 400) playNow(name, buf); });
 }
