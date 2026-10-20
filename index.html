@@ -520,15 +520,34 @@ function frame() {
   Q_BACK = o2.quaternion.clone(); R_SIDE = right;
   // One continuous turn from face down in the box to facing the camera: the card tips up as it rises, then turns the rest of the way.
   Q_UP = Q_FRONT.clone();
-  P_UP = new THREE.Vector3(0, H + 1.0, 0.3);
+  P_UP = new THREE.Vector3(0, H + ANIM.cardRise.height, ANIM.cardRise.z);
   pose(time);
 }
 
 /* ---------- animation: one pure function of time, run forward to open and backward to close ---------- */
 const clamp = (v) => Math.min(1, Math.max(0, v));
 const inOut = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
-const out = (t) => 1 - Math.pow(1 - t, 3);
-const END = 3.75;  // leaves room for the second card in the info draw
+// Every moment of the opening, in seconds on the timeline. Open the page with ?tune to scrub and adjust these live.
+// ease is a CSS-style cubic-bezier; [0.65, 0, 0.35, 1] is ease-in-out, [0.33, 1, 0.68, 1] is ease-out.
+const ANIM = {
+  lidLift:  { at: 0,    dur: 0.5,  ease: [0.33, 1, 0.68, 1], height: 3.2 },
+  lidSwing: { at: 0.35, dur: 0.85, ease: [0.65, 0, 0.35, 1], arc: 1.4, tiltX: -0.12, tiltZ: -0.22 },
+  camera:   { at: 0,    dur: 1.5,  ease: [0.65, 0, 0.35, 1] },
+  cardRise: { at: 1.7,  dur: 0.8,  ease: [0.65, 0, 0.35, 1], height: 1.0, z: 0.3, tip: 0.2 },
+  cardFly:  { at: 2.4,  dur: 1.15, ease: [0.65, 0, 0.35, 1], arc: 1.2 },
+  secondCardLag: 0.18,  // info draw: how far the card behind trails the one in front
+  swap: 0.75,           // info draw: seconds to swap the two cards
+  closeSpeed: 1.4,      // closing runs the timeline backward this much faster
+  end: 3.75,            // leaves room for the second card in the info draw
+};
+function bezier([x1, y1, x2, y2], p) {
+  const f = (t, a, b) => ((1 - 3 * b + 3 * a) * t + 3 * b - 6 * a) * t * t + 3 * a * t;
+  let lo = 0, hi = 1, t = p;
+  for (let i = 0; i < 20; i++) { if (f(t, x1, x2) < p) lo = t; else hi = t; t = (lo + hi) / 2; }
+  return f(t, y1, y2);
+}
+// Eased progress, 0 to 1, of one moment at time t. curve is set only while tuning (a spring, say).
+function prog(c, t) { const p = clamp((t - c.at) / c.dur); return p <= 0 || p >= 1 ? p : c.curve ? c.curve(p) : bezier(c.ease, p); }
 const v = new THREE.Vector3(), q = new THREE.Quaternion();
 // Where a card rests once it is out. slot -1: the single random card; 0: title card; 1: introduction.
 // During a swap the front card slides out to the side and goes behind while the other comes forward.
@@ -544,13 +563,13 @@ function restPose(slot) {
 // Card path: rise out of the box, stand up with its back to you, then fly forward and turn.
 // The lid lands at t = 1.2; the card waits half a second before it starts to rise.
 function placeCard(obj, t, from, slot) {
-  const c1 = inOut(clamp((t - 1.7) / 0.8)), c2 = inOut(clamp((t - 2.4) / 1.15));
+  const c1 = prog(ANIM.cardRise, t), c2 = prog(ANIM.cardFly, t);
   v.lerpVectors(from, P_UP, c1);
-  q.slerpQuaternions(Q_IN, Q_UP, inOut(clamp((c1 - 0.3) / 0.7)) * 0.2);
+  q.slerpQuaternions(Q_IN, Q_UP, inOut(clamp((c1 - 0.3) / 0.7)) * ANIM.cardRise.tip);
   if (c2 > 0) {
     restPose(slot);
-    v.lerpVectors(P_UP, sp, c2); v.y += Math.sin(Math.PI * c2) * 1.2;
-    q.slerpQuaternions(qa.slerpQuaternions(Q_IN, Q_UP, 0.2), sq, c2);
+    v.lerpVectors(P_UP, sp, c2); v.y += Math.sin(Math.PI * c2) * ANIM.cardFly.arc;
+    q.slerpQuaternions(qa.slerpQuaternions(Q_IN, Q_UP, ANIM.cardRise.tip), sq, c2);
   }
   obj.position.copy(v); obj.quaternion.copy(q);
   if (c2 > 0) obj.quaternion.premultiply(qa.slerpQuaternions(ID, spin.q, c2));
@@ -561,13 +580,13 @@ function placeCard(obj, t, from, slot) {
 let info = false;
 function pose(t) {
   // lid: lift straight up, then swing over and settle on the table to the right
-  const a = out(clamp(t / 0.5)), b = inOut(clamp((t - 0.35) / 0.85));
-  const lifted = LID_CLOSED.y + 3.2 * a;
+  const a = prog(ANIM.lidLift, t), b = prog(ANIM.lidSwing, t);
+  const lifted = LID_CLOSED.y + ANIM.lidLift.height * a;
   lid.position.set(
     THREE.MathUtils.lerp(LID_CLOSED.x, LID_DOWN.x, b),
-    THREE.MathUtils.lerp(lifted, LID_DOWN.y, b) + Math.sin(Math.PI * b) * 1.4,
+    THREE.MathUtils.lerp(lifted, LID_DOWN.y, b) + Math.sin(Math.PI * b) * ANIM.lidSwing.arc,
     THREE.MathUtils.lerp(LID_CLOSED.z, LID_DOWN.z, b));
-  lid.rotation.set(Math.sin(Math.PI * b) * -0.12, lidYaw * b, Math.sin(Math.PI * b) * -0.22);
+  lid.rotation.set(Math.sin(Math.PI * b) * ANIM.lidSwing.tiltX, lidYaw * b, Math.sin(Math.PI * b) * ANIM.lidSwing.tiltZ);
   lidShadow.position.set(lid.position.x, 0.006, lid.position.z);
   lidShadow.rotation.z = lid.rotation.y;
   lidShadow.material.opacity = clamp(1 - lid.position.y / 2.5) * (b > 0.02 ? 1 : 0);
@@ -576,13 +595,14 @@ function pose(t) {
   // The lid lands at t = 1.2; the card waits half a second before it starts to rise.
   // Info draw: whichever card is behind travels first and lies underneath, so the pair goes back without crossing.
   const flipped = info && swap.target === 1;
-  let c2 = placeCard(card, flipped ? t - 0.18 : t, flipped ? CARD_IN2 : CARD_IN, info ? 0 : -1);
-  if (info) c2 = Math.max(c2, placeCard(card2, flipped ? t : t - 0.18, flipped ? CARD_IN : CARD_IN2, 1));
+  const lag = ANIM.secondCardLag;
+  let c2 = placeCard(card, flipped ? t - lag : t, flipped ? CARD_IN2 : CARD_IN, info ? 0 : -1);
+  if (info) c2 = Math.max(c2, placeCard(card2, flipped ? t : t - lag, flipped ? CARD_IN : CARD_IN2, 1));
   dimLayer.material.opacity = c2;
   document.body.classList.toggle("lit", c2 > 0.5);
 
   // camera eases out to take in the lid on the table
-  const k = inOut(clamp(t / 1.5));
+  const k = prog(ANIM.camera, t);
   camera.position.lerpVectors(A.pos, B.pos, k);
   camera.lookAt(v.lerpVectors(A.target, B.target, k));
 }
@@ -747,6 +767,19 @@ cv.addEventListener("keydown", (e) => {
 });
 addEventListener("resize", layout);
 
+// ?tune loads the DialKit timeline and panel (tune.js) for scrubbing and adjusting ANIM and the sound cues.
+let tuner = null;
+if (new URLSearchParams(location.search).has("tune")) import("./tune.js").then((m) => {
+  tuner = m.default({
+    ANIM, CUES, play, startAudio, frame,
+    get time() { return time; },
+    seek(t) { time = Math.min(ANIM.end, Math.max(0, t)); dir = 0; open = time > 0; pose(time); },
+    replay(kind = "random") { time = 0; dir = 0; open = false; toggle(kind); },
+    close() { if (time > 0) { open = true; toggle(); } },
+    setInfo(on) { info = on; card2.visible = on; if (!on) swap.t = swap.target = 0; pose(time); },
+  });
+});
+
 layout();
 renderer.setAnimationLoop((nowMs) => {
   const dt = Math.min(0.05, (nowMs - last) / 1000); last = nowMs;
@@ -760,15 +793,16 @@ renderer.setAnimationLoop((nowMs) => {
     if (!dir) pose(time);
   }
   if (swap.t !== swap.target) {
-    swap.t = swap.target > swap.t ? Math.min(swap.target, swap.t + dt / 0.75) : Math.max(swap.target, swap.t - dt / 0.75);
+    swap.t = swap.target > swap.t ? Math.min(swap.target, swap.t + dt / ANIM.swap) : Math.max(swap.target, swap.t - dt / ANIM.swap);
     if (!dir) pose(time);
   }
   if (dir) {
     const prev = time;
-    time = Math.min(END, Math.max(0, time + dir * dt * speed * (dir < 0 ? 1.4 : 1)));
+    time = Math.min(ANIM.end, Math.max(0, time + dir * dt * speed * (dir < 0 ? ANIM.closeSpeed : 1)));
     for (const c of CUES) if (c.dir === dir && (dir > 0 ? prev <= c.t && time > c.t : prev >= c.t && time < c.t)) play(c.s);
     pose(time);
-    if (time === END || time === 0) {
+    tuner?.onTime(time);
+    if (time === ANIM.end || time === 0) {
       dir = 0;
       if (time === 0) { spin.q.identity(); orbit.card = 1; swap.t = swap.target = 0; frame(); if (pendingInfo) { pendingInfo = false; toggle("info"); } }
     }
