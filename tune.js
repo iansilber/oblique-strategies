@@ -37,6 +37,8 @@ const get = (o, path) => path.split(".").reduce((x, k) => x?.[k], o);
 const r3 = (n) => Math.round(n * 1000) / 1000;
 
 export default function tune(app) {
+  // Nothing is saved between visits: every load starts from ANIM. Clear what earlier versions saved.
+  try { for (const k of ["dialkit:oblique-opening", "dialkit:oblique-box"]) localStorage.removeItem(k); } catch (e) {}
   const { ANIM, CUES } = app;
   const config = { duration: ANIM.end };
   for (const [path, key, params] of MOMENTS) {
@@ -51,7 +53,7 @@ export default function tune(app) {
   config.openSounds = {}; config.closeSounds = {};
   for (const c of CUES) (c.dir > 0 ? config.openSounds : config.closeSounds)[SOUND_KEYS[c.s]] = { at: c.t, duration: 0.12 };
 
-  const timeline = createDialTimeline("Opening", config, { id: "oblique-opening", persist: true, autoplay: false });
+  const timeline = createDialTimeline("Opening", config, { id: "oblique-opening", autoplay: false });
   const dock = createDialTimelineRoot({ theme: "dark" });
 
   // Kept short so it clears the dock's ruler; the extra knobs sit in a collapsed folder.
@@ -70,7 +72,7 @@ export default function tune(app) {
       closeSpeed: [ANIM.closeSpeed, 0.5, 3, 0.05],
     },
   }, {
-    id: "oblique-box", persist: true,
+    id: "oblique-box",
     onAction(action) {
       app.startAudio();
       if (action === "actions.open") app.replay("random");
