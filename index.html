@@ -2,6 +2,7 @@
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f1f1ef">
 <title>Today's Oblique Strategy</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,6 +19,8 @@
   color-scheme: light;
 }
 html, body { height: 100%; }
+/* Safari tints its toolbars from the page edges, so the root carries the sweep's edge tone. */
+html { background: #e3e3e0; }
 body {
   margin: 0; overflow: hidden; color: var(--ink);
   background: radial-gradient(120% 90% at 50% 35%, var(--sweep-hi) 0%, var(--sweep-hi) 35%, var(--sweep-lo) 100%);
