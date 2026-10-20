@@ -397,6 +397,7 @@ const lid = new THREE.Group(); scene.add(lid);
 const lidShadow = contactShadow(WL * 1.35, DL * 1.45); scene.add(lidShadow);
 const LID_CLOSED = new THREE.Vector3(0, HB + 0.008, 0);  // sits on the tray rim with a hairline seam
 const LID_DOWN = new THREE.Vector3(W * 0.5 + WL * 0.5 + 1.6, 0, -1.8);
+let lidYaw = -0.32;  // where the lid comes to rest changes with each opening (see newLanding)
 
 const blank = paper(CW, CD, null, true), edge = new THREE.MeshStandardMaterial({ color: 0xefeadf, roughness: 0.9 });
 // Card with rounded corners: a thin rounded slab for the edge, with the face and back laid on either side.
@@ -470,6 +471,10 @@ const land = { z: -0.035, x: -0.06, y: 0 };
 function newLanding() {
   const r = (a) => (Math.random() * 2 - 1) * a;
   land.z = r(0.06); land.x = -0.04 + r(0.035); land.y = r(0.05);  // at most ~3.5° of twist
+  // The lid lands somewhere new to the right of the box, turned a little, never touching it.
+  lidYaw = -0.32 + r(0.4);
+  const reach = WL / 2 * Math.cos(lidYaw) + DL / 2 * Math.abs(Math.sin(lidYaw));  // half its width along x
+  LID_DOWN.set(W / 2 + reach + 0.4 + Math.random() * 0.6, 0, -1.8 + r(1.5));
 }
 function layout() {
   const w = innerWidth, h = innerHeight;
@@ -540,7 +545,7 @@ function pose(t) {
     THREE.MathUtils.lerp(LID_CLOSED.x, LID_DOWN.x, b),
     THREE.MathUtils.lerp(lifted, LID_DOWN.y, b) + Math.sin(Math.PI * b) * 1.4,
     THREE.MathUtils.lerp(LID_CLOSED.z, LID_DOWN.z, b));
-  lid.rotation.set(Math.sin(Math.PI * b) * -0.12, -0.32 * b, Math.sin(Math.PI * b) * -0.22);
+  lid.rotation.set(Math.sin(Math.PI * b) * -0.12, lidYaw * b, Math.sin(Math.PI * b) * -0.22);
   lidShadow.position.set(lid.position.x, 0.006, lid.position.z);
   lidShadow.rotation.z = lid.rotation.y;
   lidShadow.material.opacity = clamp(1 - lid.position.y / 2.5) * (b > 0.02 ? 1 : 0);
