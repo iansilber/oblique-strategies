@@ -461,7 +461,7 @@ function viewDir() {
   const p = THREE.MathUtils.clamp(BASE_PITCH + orbit.pitch, PITCH_MIN, PITCH_MAX), y = BASE_YAW + orbit.yaw;
   return new THREE.Vector3(Math.sin(y) * Math.cos(p), Math.sin(p), Math.cos(y) * Math.cos(p));
 }
-const shots = { closed: { target: new THREE.Vector3(0, 2.2, 0), r: 8.2 }, open: { target: new THREE.Vector3(3.9, 1.6, -0.6), r: 12 } };
+const shots = { closed: { target: new THREE.Vector3(0, 2.2, 0), r: 8.2 }, open: { target: new THREE.Vector3(5.8, 1.6, -0.6), r: 12.6 } };  // wide enough for anywhere the lid lands
 function shotPose(s) {
   const vf = THREE.MathUtils.degToRad(camera.fov), hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect);
   const d = orbit.zoom * s.r / Math.sin(Math.min(vf, hf) / 2);
@@ -475,10 +475,18 @@ const land = { z: -0.035, x: -0.06, y: 0 };
 function newLanding() {
   const r = (a) => (Math.random() * 2 - 1) * a;
   land.z = r(0.06); land.x = -0.04 + r(0.035); land.y = r(0.05);  // at most ~3.5° of twist
-  // The lid lands somewhere new to the right of the box, turned a little, never touching it.
-  lidYaw = -0.32 + r(0.4);
-  const reach = WL / 2 * Math.cos(lidYaw) + DL / 2 * Math.abs(Math.sin(lidYaw));  // half its width along x
-  LID_DOWN.set(W / 2 + reach + 0.4 + Math.random() * 0.6, 0, -1.8 + r(1.5));
+  // The lid lands somewhere new to the right of the box, turned a little. It is pushed out until no corner
+  // overlaps the box, either on the table or as seen from the opening camera (which looks from the front left).
+  lidYaw = -0.32 + r(0.2);
+  const lidZ = -1.2 + r(1.4), c = Math.cos(lidYaw), s = Math.sin(lidYaw);
+  const rx = Math.cos(BASE_YAW), rz = -Math.sin(BASE_YAW);  // the camera's right, on the table
+  let reach = 0, wide = 0;
+  for (const [x, z] of [[WL / 2, DL / 2], [WL / 2, -DL / 2]]) {
+    reach = Math.max(reach, Math.abs(x * c + z * s));                          // half its width along x
+    wide = Math.max(wide, Math.abs((x * c + z * s) * rx + (-x * s + z * c) * rz));  // half its width on screen
+  }
+  const boxRight = W / 2 * rx + D / 2 * rz;
+  LID_DOWN.set(Math.max(W / 2 + reach + 0.4, (boxRight + 0.3 + wide - lidZ * rz) / rx) + Math.random() * 0.4, 0, lidZ);
 }
 function layout() {
   const w = innerWidth, h = innerHeight;
