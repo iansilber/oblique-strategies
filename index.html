@@ -51,33 +51,6 @@ body.lit #mute { color: #d8d7d1; }
 #info:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 #info svg { width: 20px; height: 20px; }
 body.lit #info { color: #d8d7d1; }
-#about {
-  position: fixed; inset: 0; z-index: 3; display: flex; cursor: pointer; overflow-y: auto; box-sizing: border-box;
-  background: rgba(20, 20, 19, .45);
-  padding-block: 24px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  animation: fade .25s ease;
-}
-#about[hidden] { display: none; }
-#about .cards { width: 100%; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 28px; margin: auto; }
-/* The two printed cards from the front of the real pack, at the same proportions as the 3D card. */
-.ref-card {
-  container-type: inline-size; width: min(440px, 100%); flex: 0 0 auto; aspect-ratio: 1.37; box-sizing: border-box; cursor: auto;
-  background: #f5f4f0; color: #111; border-radius: 4.2% / 5.75%;
-  box-shadow: 0 1px 2px rgba(0,0,0,.2), 0 22px 44px -22px rgba(0,0,0,.55);
-  font-family: Helvetica, "Helvetica Neue", Arimo, Arial, sans-serif;
-}
-.ref-card .in { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; }
-.ref-card.title .in { align-items: center; text-align: center; }
-.ref-card.title h2 { margin: 0; font-size: 5.6cqw; font-weight: 700; letter-spacing: .01em; }
-.ref-card.title .sub { margin: 1.6cqw 0 0; font-size: 5cqw; }
-.ref-card.title .by { margin: 7.5cqw 0 0; font-size: 5cqw; }
-.ref-card.title .ed { margin: 6cqw 0 0; font-size: 3.6cqw; line-height: 1.3; }
-.ref-card.intro .in { padding: 0 7.5cqw 3cqw; }
-.ref-card.intro p { margin: 0; font-size: 2.85cqw; line-height: 1.34; letter-spacing: .085em; text-align: justify; hyphens: auto; }
-@keyframes fade { from { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { #about { animation: none; } }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 #fallback[hidden] { display: none; }
 #fallback { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; font-family: var(--serif); font-size: 22px; text-align: center; }
@@ -85,23 +58,9 @@ body.lit #info { color: #d8d7d1; }
 
 <canvas id="stage" tabindex="0" aria-label="Oblique Strategies box. Press Enter to open it."></canvas>
 <div class="hud top"><div id="date"></div></div>
-<button id="info" aria-label="About the cards" title="About the cards" aria-expanded="false" aria-controls="about">
+<button id="info" aria-label="About the cards" title="About the cards">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/></svg>
 </button>
-<div id="about" role="dialog" aria-modal="true" aria-label="About the cards" hidden>
-  <div class="cards">
-    <div class="ref-card title"><div class="in">
-      <h2>OBLIQUE STRATEGIES</h2>
-      <p class="sub">Over one hundred worthwhile dilemmas</p>
-      <p class="by">BRIAN ENO and PETER SCHMIDT</p>
-      <p class="ed">Fifth, again slightly revised edition, 2001<br>© 1975 Brian Eno and Peter Schmidt</p>
-    </div></div>
-    <div class="ref-card intro" lang="en"><div class="in">
-      <p>These cards evolved from separate observations of the principles underlying what we were doing. Sometimes they were recognized in retrospect (intellect catching up with intuition), sometimes they were identified as they were happening, sometimes they were formulated.</p>
-      <p>They can be used as a pack (a set of possibilities being continuously reviewed in the mind) or by drawing a single card from the shuffled pack when a dilemma occurs in a working situation. In this case the card is trusted even if its appropriateness is quite unclear. They are not final, as new ideas will present themselves, and others will become self-evident.</p>
-    </div></div>
-  </div>
-</div>
 <button id="mute" aria-pressed="false" aria-label="Mute sound" title="Mute sound">
   <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
   <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>
@@ -234,6 +193,7 @@ function goldTitle(w, h) {
     polygonOffset: true, polygonOffsetFactor: -2, depthWrite: false,
   });
 }
+const TITLE_CARD = {};
 function paper(w, h, face, dark) {
   const W = 1024, H = Math.round(1024 * h / w), c = canvas(W, H), x = c.getContext("2d");
   const id = x.createImageData(W, H), lo = blobNoise(W, H, 60), grit = blobNoise(W, H, 5);
@@ -253,7 +213,25 @@ function paper(w, h, face, dark) {
     id.data[i] = 241 + v; id.data[i+1] = 237 + v - edge * 3; id.data[i+2] = 226 + v - edge * 9; id.data[i+3] = 255;
   }
   x.putImageData(id, 0, 0);
-  if (face) {
+  if (face === TITLE_CARD) {
+    // The pack's title card, laid out like the printed one.
+    const f = (px, bold) => `${bold ? "bold " : ""}${px}px Helvetica, "Helvetica Neue", Arimo, Arial, sans-serif`;
+    const rows = [
+      { t: "OBLIQUE STRATEGIES", size: 0.056, bold: true, gap: 0 },
+      { t: "Over one hundred worthwhile dilemmas", size: 0.05, gap: 0.016 },
+      { t: "BRIAN ENO and PETER SCHMIDT", size: 0.05, gap: 0.075 },
+      { t: "Fifth, again slightly revised edition, 2001", size: 0.036, gap: 0.06 },
+      { t: "\u00a9 1975 Brian Eno and Peter Schmidt", size: 0.036, gap: 0.011 },
+    ];
+    const total = rows.reduce((h, row) => h + row.gap * W + row.size * W * 1.15, 0);
+    let y = H / 2 - total / 2;
+    x.fillStyle = "#151514"; x.textAlign = "center"; x.textBaseline = "middle";
+    for (const row of rows) {
+      y += row.gap * W + row.size * W * 1.15 / 2;
+      x.font = f(row.size * W, row.bold); x.fillText(row.t, W / 2, y);
+      y += row.size * W * 1.15 / 2;
+    }
+  } else if (face) {
     const maxW = W * 0.78, maxH = H * 0.62;
     let size = W * 0.07, lines;
     for (;;) {
@@ -547,29 +525,34 @@ function playNow(name, buf) {
   out.connect(g).connect(audio.destination); src.start();
 }
 
-const infoBtn = document.getElementById("info"), about = document.getElementById("about");
-function showAbout(on) {
-  about.hidden = !on; infoBtn.setAttribute("aria-expanded", on);
-  (on ? about : infoBtn).focus?.();
-}
-about.tabIndex = -1;
-infoBtn.addEventListener("click", () => showAbout(about.hidden));
-about.addEventListener("click", () => showAbout(false));
-addEventListener("keydown", (e) => { if (e.key === "Escape" && !about.hidden) showAbout(false); });
-
+// The info button draws the pack's title card with the same animation as a random draw.
+// If another card is out, it goes back in first.
+const infoBtn = document.getElementById("info");
+let pendingInfo = false;
+infoBtn.addEventListener("click", () => {
+  if (!open && !dir) toggle("info");
+  else if (open && showing === "info") toggle();
+  else { pendingInfo = true; if (open) toggle(); }
+});
 let time = 0, dir = 0, open = false, last = performance.now();
 const speed = matchMedia("(prefers-reduced-motion: reduce)").matches ? 3 : 1;
 const said = document.getElementById("said");
-function toggle() {
+let showing = "random";
+function setFace(face) {
+  const old = cardFront.material;
+  cardFront.material = paper(CW, CD, face);
+  old.map.dispose(); old.dispose();
+}
+function toggle(kind = "random") {
   startAudio();
   spin.vx = spin.vy = 0;
   open = !open; dir = open ? 1 : -1;
+  if (open && kind === "random") pendingInfo = false;
   if (open) {
-    if (!firstOpen && time === 0) {  // the card is back in the box: swap in a new one before it comes out
-      TEXT = CARDS[drawCard()];
-      const old = cardFront.material;
-      cardFront.material = paper(CW, CD, TEXT);
-      old.map.dispose(); old.dispose();
+    if (time === 0) {  // the card is in the box: put the right face on it before it comes out
+      if (kind === "info") { setFace(TITLE_CARD); TEXT = "Oblique Strategies. Over one hundred worthwhile dilemmas. Brian Eno and Peter Schmidt."; }
+      else if (!firstOpen || showing === "info") { TEXT = CARDS[drawCard()]; setFace(TEXT); }
+      showing = kind;
     }
     if (time === 0) { newLanding(); frame(); }
     firstOpen = false;
@@ -651,7 +634,7 @@ renderer.setAnimationLoop((nowMs) => {
     pose(time);
     if (time === END || time === 0) {
       dir = 0;
-      if (time === 0) { spin.q.identity(); orbit.card = 1; frame(); }
+      if (time === 0) { spin.q.identity(); orbit.card = 1; frame(); if (pendingInfo) { pendingInfo = false; toggle("info"); } }
     }
   }
   renderer.clear();
