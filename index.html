@@ -590,7 +590,7 @@ function pose(t) {
 /* ---------- sound: recordings of the real box, cued to moments in the timeline ---------- */
 const VOLUME = 1.4;  // overall level; the clips themselves are also stored 20 dB down
 const MUSIC_LEVEL = 0.3;  // keeps the soundtrack about 12 dB under the box sounds
-const SOUNDS = { "lid-lift": 0.8, "lid-down": 0.9, "card-out": 0.375, "card-back": 0.6, "lid-pickup": 0.6, "lid-close": 0.9 };
+const SOUNDS = { "lid-lift": 0.8, "lid-down": 0.9, "card-out": 0.375, "card-back": 0.65, "lid-pickup": 0.6, "lid-close": 0.9 };
 // t is the timeline moment the clip starts; clips start a little early so their loudest moment lands on the action.
 const CUES = [
   { t: 0, dir: 1, s: "lid-lift" }, { t: 1.6, dir: 1, s: "card-out" }, { t: 1.05, dir: 1, s: "lid-down" },
@@ -674,7 +674,7 @@ function toggle(kind = "random") {
   startAudio();
   spin.vx = spin.vy = 0;
   open = !open; dir = open ? 1 : -1;
-  if (!open && time > 2.4) play("card-back");  // the card is out: the return sound starts on the click itself
+  if (!open && !info && time > 2.4) play("card-back");  // a single card is out: its return sound starts on the click itself
   if (open && kind === "random") pendingInfo = false;
   if (open) {
     if (time === 0) {  // the card is in the box: put the right face on it before it comes out
