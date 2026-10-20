@@ -590,7 +590,7 @@ function pose(t) {
 /* ---------- sound: recordings of the real box, cued to moments in the timeline ---------- */
 const VOLUME = 1.4;  // overall level; the clips themselves are also stored 20 dB down
 const MUSIC_LEVEL = 0.3;  // keeps the soundtrack about 12 dB under the box sounds
-const SOUNDS = { "lid-lift": 0.8, "lid-down": 0.9, "card-out": 0.375, "card-back": 0.45, "lid-pickup": 0.6, "lid-close": 0.9 };
+const SOUNDS = { "lid-lift": 0.8, "lid-down": 0.9, "card-out": 0.375, "card-back": 0.6, "lid-pickup": 0.6, "lid-close": 0.9 };
 // t is the timeline moment the clip starts; clips start a little early so their loudest moment lands on the action.
 const CUES = [
   { t: 0, dir: 1, s: "lid-lift" }, { t: 1.6, dir: 1, s: "card-out" }, { t: 1.05, dir: 1, s: "lid-down" },
