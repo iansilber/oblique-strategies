@@ -1,0 +1,667 @@
+<title>Today's Oblique Strategy</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sorts+Mill+Goudy:ital@0;1&family=Tinos:wght@700&family=Arimo&family=IBM+Plex+Mono&display=swap">
+<style>
+/* Layout: a full-screen photo studio sweep; the box sits in the middle, a quiet caption top and bottom. */
+:root {
+  --sweep-hi: #f4f4f2;
+  --sweep-lo: #d9d9d6;
+  --ink: #2a2a28;
+  --muted: #7a7973;
+  --serif: "Sorts Mill Goudy", "Goudy Old Style", Garamond, Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden; color: var(--ink);
+  background: radial-gradient(120% 90% at 50% 35%, var(--sweep-hi) 0%, var(--sweep-hi) 35%, var(--sweep-lo) 100%);
+}
+canvas#stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; outline: none; touch-action: none; cursor: grab; }
+canvas#stage.hot { cursor: pointer; }
+canvas#stage.drag { cursor: grabbing; }
+.hud {
+  position: fixed; left: 0; right: 0; pointer-events: none; text-align: center;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.top { top: calc(env(safe-area-inset-top, 0px) + 22px); }
+.bottom { bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); }
+#date { font-family: var(--serif); font-style: italic; font-size: 17px; letter-spacing: .01em; }
+body.lit #date { color: #eeede8; }
+#date { transition: color .4s, opacity .4s; }
+#mute {
+  position: fixed; z-index: 2; top: calc(env(safe-area-inset-top, 0px) + 14px); right: max(14px, calc(env(safe-area-inset-right, 0px) + 14px));
+  width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 50%; cursor: pointer;
+  background: transparent; color: var(--muted); transition: color .3s, background .3s;
+}
+#mute:hover { background: rgba(0,0,0,.06); color: var(--ink); }
+#mute:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+#mute svg { width: 20px; height: 20px; }
+#mute .off, #mute[aria-pressed="true"] .on { display: none; }
+#mute[aria-pressed="true"] .off { display: block; }
+body.lit #mute { color: #d8d7d1; }
+#info {
+  position: fixed; z-index: 2; top: calc(env(safe-area-inset-top, 0px) + 14px); left: max(14px, calc(env(safe-area-inset-left, 0px) + 14px));
+  width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 50%; cursor: pointer;
+  background: transparent; color: var(--muted); transition: color .3s, background .3s;
+}
+#info:hover { background: rgba(0,0,0,.06); color: var(--ink); }
+#info:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+#info svg { width: 20px; height: 20px; }
+body.lit #info { color: #d8d7d1; }
+#about {
+  position: fixed; inset: 0; z-index: 3; display: flex; cursor: pointer; overflow-y: auto; box-sizing: border-box;
+  background: rgba(20, 20, 19, .45);
+  padding-block: 24px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  animation: fade .25s ease;
+}
+#about[hidden] { display: none; }
+#about .cards { width: 100%; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 28px; margin: auto; }
+/* The two printed cards from the front of the real pack, at the same proportions as the 3D card. */
+.ref-card {
+  container-type: inline-size; width: min(440px, 100%); flex: 0 0 auto; aspect-ratio: 1.37; box-sizing: border-box; cursor: auto;
+  background: #f5f4f0; color: #111; border-radius: 4.2% / 5.75%;
+  box-shadow: 0 1px 2px rgba(0,0,0,.2), 0 22px 44px -22px rgba(0,0,0,.55);
+  font-family: Helvetica, "Helvetica Neue", Arimo, Arial, sans-serif;
+}
+.ref-card .in { height: 100%; box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; }
+.ref-card.title .in { align-items: center; text-align: center; }
+.ref-card.title h2 { margin: 0; font-size: 5.6cqw; font-weight: 700; letter-spacing: .01em; }
+.ref-card.title .sub { margin: 1.6cqw 0 0; font-size: 5cqw; }
+.ref-card.title .by { margin: 7.5cqw 0 0; font-size: 5cqw; }
+.ref-card.title .ed { margin: 6cqw 0 0; font-size: 3.6cqw; line-height: 1.3; }
+.ref-card.intro .in { padding: 0 7.5cqw 3cqw; }
+.ref-card.intro p { margin: 0; font-size: 2.85cqw; line-height: 1.34; letter-spacing: .085em; text-align: justify; hyphens: auto; }
+@keyframes fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #about { animation: none; } }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+#fallback[hidden] { display: none; }
+#fallback { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; font-family: var(--serif); font-size: 22px; text-align: center; }
+</style>
+
+<canvas id="stage" tabindex="0" aria-label="Oblique Strategies box. Press Enter to open it."></canvas>
+<div class="hud top"><div id="date"></div></div>
+<button id="info" aria-label="About the cards" title="About the cards" aria-expanded="false" aria-controls="about">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/></svg>
+</button>
+<div id="about" role="dialog" aria-modal="true" aria-label="About the cards" hidden>
+  <div class="cards">
+    <div class="ref-card title"><div class="in">
+      <h2>OBLIQUE STRATEGIES</h2>
+      <p class="sub">Over one hundred worthwhile dilemmas</p>
+      <p class="by">BRIAN ENO and PETER SCHMIDT</p>
+      <p class="ed">Fifth, again slightly revised edition, 2001<br>© 1975 Brian Eno and Peter Schmidt</p>
+    </div></div>
+    <div class="ref-card intro" lang="en"><div class="in">
+      <p>These cards evolved from separate observations of the principles underlying what we were doing. Sometimes they were recognized in retrospect (intellect catching up with intuition), sometimes they were identified as they were happening, sometimes they were formulated.</p>
+      <p>They can be used as a pack (a set of possibilities being continuously reviewed in the mind) or by drawing a single card from the shuffled pack when a dilemma occurs in a working situation. In this case the card is trusted even if its appropriateness is quite unclear. They are not final, as new ideas will present themselves, and others will become self-evident.</p>
+    </div></div>
+  </div>
+</div>
+<button id="mute" aria-pressed="false" aria-label="Mute sound" title="Mute sound">
+  <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
+  <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>
+</button>
+<p class="sr" id="said" aria-live="polite"></p>
+<div id="fallback" hidden></div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+/* ---------- today's card (same for everyone on a given date, no repeats per cycle) ---------- */
+const CARDS = [
+"Abandon normal instruments","Accept advice","Accretion","A line has two sides","Allow an easement (an easement is the abandonment of a stricture)","Are there sections? Consider transitions","Ask people to work against their better judgement","Ask your body","Assemble some of the instruments in a group and treat the group","Balance the consistency principle with the inconsistency principle","Be dirty","Breathe more deeply","Bridges -build -burn","Cascades","Change instrument roles","Change nothing and continue with immaculate consistency","Children's voices -speaking -singing","Cluster analysis","Consider different fading systems","Consult other sources -promising -unpromising","Convert a melodic element into a rhythmic element","Courage!","Cut a vital connection","Decorate, decorate","Define an area as 'safe' and use it as an anchor","Destroy -nothing -the most important thing","Discard an axiom","Disconnect from desire","Discover the recipes you are using and abandon them","Distorting time","Do nothing for as long as possible","Don't be afraid of things because they're easy to do","Don't be frightened of cliches","Don't be frightened to display your talents","Don't break the silence","Don't stress one thing more than another","Do something boring","Do the washing up","Do the words need changing?","Do we need holes?","Emphasize differences","Emphasize repetitions","Emphasize the flaws","Faced with a choice, do both","Feedback recordings into an acoustic situation","Fill every beat with something","Get your neck massaged","Ghost echoes","Give the game away","Give way to your worst impulse","Go slowly all the way round the outside","Honor thy error as a hidden intention","How would you have done it?","Humanize something free of error","Imagine the music as a moving chain or caterpillar","Imagine the music as a set of disconnected events","Infinitesimal gradations","Intentions -credibility of -nobility of -humility of","Into the impossible","Is it finished?","Is there something missing?","Is the tuning appropriate?","Just carry on","Left channel, right channel, centre channel","Listen in total darkness, or in a very large room, very quietly","Listen to the quiet voice","Look at a very small object, look at its centre","Look at the order in which you do things","Look closely at the most embarrassing details and amplify them","Lowest common denominator check -single beat -single note -single riff","Make a blank valuable by putting it in an exquisite frame","Make an exhaustive list of everything you might do and do the last thing on the list","Make a sudden, destructive unpredictable action; incorporate","Mechanicalize something idiosyncratic","Mute and continue","Only one element of each kind","(Organic) machinery","Overtly resist change","Put in earplugs","Remember those quiet evenings","Remove ambiguities and convert to specifics","Remove specifics and convert to ambiguities","Repetition is a form of change","Reverse","Short circuit (example: a man eating peas with the idea that they will improve his virility shovels them straight into his lap)","Shut the door and listen from outside","Simple subtraction","Spectrum analysis","Take a break","Take away the elements in order of apparent non-importance","Tape your mouth","The inconsistency principle","The tape is now the music","Think of the radio","Tidy up","Trust in the you of now","Turn it upside down","Twist the spine","Use an old idea","Use an unacceptable colour","Use fewer notes","Use filters","Use 'unqualified' people","Water","What are you really thinking about just now? Incorporate","What is the reality of the situation?","What mistakes did you make last time?","What would your closest friend do?","What wouldn't you do?","Work at a different speed","You are an engineer","You can only make one dot at a time","You don't have to be ashamed of using your own ideas","Your mistake was a hidden intention","Gardening, not architecture","Look at the order in which you do things","Not building a wall but making a brick","Once the search is in progress, something will be found","State the problem in words as clearly as possible","Use cliches","Voice nagging suspicions","Retrace your steps","Revaluation (a warm feeling)","Slow preparation, fast execution","Go to an extreme, move back to a more comfortable place","What context would look right?","Where's the edge? Where does the frame start?","Which frame would make this look right?"
+].filter((c, i, a) => a.indexOf(c) === i);
+
+const EPOCH = Date.UTC(2026, 0, 1), DAY = 86400000, N = CARDS.length;
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+// A fresh card is drawn every time the box is opened, never the same one twice in a row.
+let cardIdx = Math.floor(Math.random() * N);
+function drawCard() {
+  let i = Math.floor(Math.random() * (N - 1)); if (i >= cardIdx) i++;
+  return (cardIdx = i);
+}
+let TEXT = CARDS[cardIdx];
+const now = new Date();
+document.getElementById("date").textContent =
+  new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(now);
+
+/* ---------- procedural textures ---------- */
+const rand = mulberry32(42);
+function canvas(w, h) { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; }
+function blobNoise(w, h, cell) {
+  const s = canvas(Math.max(2, Math.ceil(w / cell)), Math.max(2, Math.ceil(h / cell))), x = s.getContext("2d");
+  const id = x.createImageData(s.width, s.height);
+  for (let i = 0; i < id.data.length; i += 4) { const v = rand() * 255; id.data[i] = id.data[i+1] = id.data[i+2] = v; id.data[i+3] = 255; }
+  x.putImageData(id, 0, 0);
+  const b = canvas(w, h), bx = b.getContext("2d"); bx.imageSmoothingQuality = "high"; bx.drawImage(s, 0, 0, w, h);
+  return bx.getImageData(0, 0, w, h).data;
+}
+function tex(c, srgb) {
+  const t = new THREE.CanvasTexture(c); t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  t.anisotropy = 8; return t;
+}
+// Black pebble-grain leatherette, mapped in world units (1 texture = 14 cm) so it wraps the rounded shells.
+function leather() {
+  const S = 1024;
+  const col = canvas(S, S), bmp = canvas(S, S), rgh = canvas(S, S);
+  const cx = col.getContext("2d"), bx = bmp.getContext("2d"), rx = rgh.getContext("2d");
+  const ci = cx.createImageData(S, S), bi = bx.createImageData(S, S), ri = rx.createImageData(S, S);
+  const lo = blobNoise(S, S, 90), mid = blobNoise(S, S, 4);
+  for (let i = 0; i < ci.data.length; i += 4) {
+    const rub = Math.max(0, (lo[i] - 160) / 95);  // rubbed, slightly shiny patches
+    const hf = rand(), v = 21 + rub * 14 + (lo[i] - 128) * 0.025 + (mid[i] - 128) * 0.035 + (hf - 0.5) * 5;
+    ci.data[i] = v * 0.94; ci.data[i+1] = v; ci.data[i+2] = v * 1.08; ci.data[i+3] = 255;
+    const bv = 128 + (mid[i] - 128) * 0.7 + (hf - 0.5) * 50;
+    bi.data[i] = bi.data[i+1] = bi.data[i+2] = bv; bi.data[i+3] = 255;
+    const rv = 150 + (hf - 0.5) * 30 - (mid[i] - 128) * 0.3 - rub * 45;
+    ri.data[i] = ri.data[i+1] = ri.data[i+2] = rv; ri.data[i+3] = 255;
+  }
+  cx.putImageData(ci, 0, 0); bx.putImageData(bi, 0, 0); rx.putImageData(ri, 0, 0);
+  // fine scratches
+  const r3 = mulberry32(11);
+  for (let k = 0; k < 90; k++) {
+    const x0 = r3() * S, y0 = r3() * S, a = r3() * Math.PI, len = 8 + r3() * 60;
+    cx.strokeStyle = `rgba(120,118,112,${0.15 + r3() * 0.25})`; cx.lineWidth = 0.6 + r3();
+    cx.beginPath(); cx.moveTo(x0, y0); cx.lineTo(x0 + Math.cos(a) * len, y0 + Math.sin(a) * len); cx.stroke();
+  }
+  const maps = [tex(col, true), tex(bmp), tex(rgh)];
+  for (const t of maps) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / 14, 1 / 14); t.offset.set(0.5, 0.5); }
+  const m = new THREE.MeshStandardMaterial({ map: maps[0], bumpMap: maps[1], bumpScale: 0.6, roughnessMap: maps[2], roughness: 1 });
+  // Edge wear: the paper rubs through to grey board on corners and edges. Each vertex carries a
+  // `wear` amount (how far its normal is from a flat face), broken up by a noise texture.
+  const nz = canvas(256, 256), nx = nz.getContext("2d"), nd = nx.createImageData(256, 256), bn = blobNoise(256, 256, 3);
+  for (let i = 0; i < nd.data.length; i += 4) { nd.data[i] = nd.data[i+1] = nd.data[i+2] = bn[i] * 0.7 + rand() * 76; nd.data[i+3] = 255; }
+  nx.putImageData(nd, 0, 0);
+  const noise = tex(nz); noise.wrapS = noise.wrapT = THREE.RepeatWrapping;
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.wearNoise = { value: noise };
+    sh.vertexShader = sh.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute float wear;\nvarying float vWear;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvWear = wear;");
+    sh.fragmentShader = sh.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform sampler2D wearNoise;\nvarying float vWear;")
+      .replace("#include <map_fragment>", `#include <map_fragment>
+        float wn = texture2D(wearNoise, vMapUv * 2.5).r * 0.65 + texture2D(wearNoise, vMapUv * 11.0).r * 0.55;
+        float wearAmt = smoothstep(0.42, 0.7, vWear * wn);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.12, 0.115, 0.105), wearAmt);`)
+      .replace("#include <roughnessmap_fragment>", "#include <roughnessmap_fragment>\nroughnessFactor = mix(roughnessFactor, 0.97, wearAmt);");
+  };
+  return m;
+}
+function addWear(g) {
+  const n = g.attributes.normal, w = new Float32Array(n.count);
+  for (let i = 0; i < n.count; i++)
+    w[i] = Math.min(1, (1 - Math.max(Math.abs(n.getX(i)), Math.abs(n.getY(i)), Math.abs(n.getZ(i)))) / 0.2);
+  g.setAttribute("wear", new THREE.BufferAttribute(w, 1));
+  return g;
+}
+// Gold foil title, set tight like the real box, on a transparent decal that sits on the lid face.
+function goldTitle(w, h) {
+  const W = 2048, H = Math.round(2048 * h / w), c = canvas(W, H), x = c.getContext("2d");
+  const font = (px) => `bold ${px}px "Times New Roman", Tinos, Times, serif`;
+  const track = -0.045;  // tight tracking, as stamped on the real box
+  x.font = font(100); x.letterSpacing = `${100 * track}px`;
+  const size = 100 * (W * 0.86) / x.measureText("OBLIQUE STRATEGIES").width, y = H * 0.38;
+  x.font = font(size); x.letterSpacing = `${size * track}px`; x.textAlign = "center"; x.textBaseline = "middle";
+  const g = x.createLinearGradient(0, y - size / 2, W, y + size / 2);
+  g.addColorStop(0, "#c9ab6a"); g.addColorStop(0.35, "#ecd79e"); g.addColorStop(0.65, "#b8975a"); g.addColorStop(1, "#e0c88a");
+  x.fillStyle = g; x.fillText("OBLIQUE STRATEGIES", W / 2, y);
+  // a little worn foil
+  const r2 = mulberry32(7);
+  x.globalCompositeOperation = "destination-out";
+  for (let k = 0; k < 900; k++) x.fillRect(r2() * W, y - size * 0.6 + r2() * size * 1.2, 1 + r2() * 2.5, 1 + r2() * 2.5);
+  for (let k = 0; k < 14; k++) {  // a few rubbed-off patches
+    const px = W * (0.08 + r2() * 0.84), py = y + (r2() - 0.5) * size * 0.8, rad = size * (0.04 + r2() * 0.1);
+    const gr = x.createRadialGradient(px, py, 0, px, py, rad);
+    gr.addColorStop(0, "rgba(0,0,0,0.7)"); gr.addColorStop(1, "rgba(0,0,0,0)");
+    x.fillStyle = gr; x.fillRect(px - rad, py - rad, rad * 2, rad * 2);
+  }
+  return new THREE.MeshStandardMaterial({
+    map: tex(c, true), transparent: true, metalness: 1, roughness: 0.38,
+    polygonOffset: true, polygonOffsetFactor: -2, depthWrite: false,
+  });
+}
+function paper(w, h, face, dark) {
+  const W = 1024, H = Math.round(1024 * h / w), c = canvas(W, H), x = c.getContext("2d");
+  const id = x.createImageData(W, H), lo = blobNoise(W, H, 60), grit = blobNoise(W, H, 5);
+  // Handling wear: faint grime and scuffing in a narrow band along the rounded edge.
+  const rad = CR * W / w, hx = W / 2 - rad, hy = H / 2 - rad, band = 22;
+  for (let i = 0; i < id.data.length; i += 4) {
+    const px = (i / 4) % W, py = Math.floor(i / 4 / W);
+    const qx = Math.abs(px - W / 2) - hx, qy = Math.abs(py - H / 2) - hy;
+    const d = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - rad;
+    const edge = Math.max(0, 1 + d / band) ** 2 * (0.3 + grit[i] / 255);
+    if (dark) {  // black card back: wear shows as lighter scuffing
+      const v = 20 + (rand() - 0.5) * 5 + (lo[i] - 128) * 0.03 + edge * 34;
+      id.data[i] = v; id.data[i+1] = v; id.data[i+2] = v * 1.03; id.data[i+3] = 255;
+      continue;
+    }
+    const v = (rand() - 0.5) * 6 + (lo[i] - 128) * 0.035 - edge * 48;
+    id.data[i] = 241 + v; id.data[i+1] = 237 + v - edge * 3; id.data[i+2] = 226 + v - edge * 9; id.data[i+3] = 255;
+  }
+  x.putImageData(id, 0, 0);
+  if (face) {
+    const maxW = W * 0.78, maxH = H * 0.62;
+    let size = W * 0.07, lines;
+    for (;;) {
+      x.font = `${size}px Helvetica, "Helvetica Neue", Arimo, Arial, sans-serif`;
+      lines = []; let line = "";
+      for (const word of face.split(" ")) {
+        const t = line ? line + " " + word : word;
+        if (x.measureText(t).width > maxW && line) { lines.push(line); line = word; } else line = t;
+      }
+      lines.push(line);
+      if (lines.length * size * 1.25 <= maxH && lines.every(l => x.measureText(l).width <= maxW) || size < 20) break;
+      size *= 0.93;
+    }
+    x.fillStyle = "#151514"; x.textAlign = "center"; x.textBaseline = "middle";
+    const lh = size * 1.25, y0 = H / 2 - (lines.length - 1) * lh / 2;
+    lines.forEach((l, k) => x.fillText(l, W / 2, y0 + k * lh));
+  }
+  return new THREE.MeshStandardMaterial({ map: tex(c, true), roughness: dark ? 0.7 : 0.82 });
+}
+function stackSides() {
+  const c = canvas(64, 256), x = c.getContext("2d");
+  x.fillStyle = "#ece7da"; x.fillRect(0, 0, 64, 256);
+  for (let y = 0; y < 256; y += 4) { x.fillStyle = `rgba(90,80,60,${0.18 + rand() * 0.2})`; x.fillRect(0, y, 64, 1); }
+  const t = tex(c, true); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, 0.45);
+  return new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 });
+}
+function contactShadow(w, d) {
+  const c = canvas(256, 256), x = c.getContext("2d");
+  const g = x.createRadialGradient(128, 128, 20, 128, 128, 128);
+  g.addColorStop(0, "rgba(0,0,0,0.75)"); g.addColorStop(0.55, "rgba(0,0,0,0.35)"); g.addColorStop(1, "rgba(0,0,0,0)");
+  x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d),
+    new THREE.MeshBasicMaterial({ map: tex(c, true), transparent: true, depthWrite: false }));
+  m.rotation.x = -Math.PI / 2; m.position.y = 0.005; return m;
+}
+
+/* ---------- scene ---------- */
+const cv = document.getElementById("stage");
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true }); }
+catch (e) {
+  const fb = document.getElementById("fallback"); fb.hidden = false; fb.textContent = TEXT; throw e;
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
+renderer.autoClear = false; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.55;
+const camera = new THREE.PerspectiveCamera(30, 1, 1, 200);
+
+const key = new THREE.DirectionalLight(0xfff6ea, 2.4);
+key.position.set(-9, 16, 10); key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048); key.shadow.radius = 6; key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
+Object.assign(key.shadow.camera, { left: -16, right: 16, top: 16, bottom: -16, near: 1, far: 50 });
+scene.add(key);
+const rim = new THREE.DirectionalLight(0xe8eeff, 0.9); rim.position.set(10, 8, -12); scene.add(rim);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.ShadowMaterial({ opacity: 0.22 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+// Dimensions in centimetres.
+// Built like the real box: a shallow tray, an inner liner that stands up out of it,
+// and a lid that slides down over the liner to sit flush on the tray.
+const W = 10, D = 7.6, H = 4.4, T = 0.12, HL = 2.3;
+const HB = H - HL;                                   // tray height
+const LT = 0.08, LW = W - 2 * T - 0.03, LD = D - 2 * T - 0.03, LH = H - 2 * T - 0.01;  // liner
+const WL = W, DL = D;                                // lid is the same footprint as the tray
+function rrect(w, d, r, PathType = THREE.Shape) {
+  const p = new PathType(), x = w / 2, z = d / 2;
+  p.moveTo(-x + r, -z); p.lineTo(x - r, -z); p.absarc(x - r, -z + r, r, -Math.PI / 2, 0);
+  p.lineTo(x, z - r); p.absarc(x - r, z - r, r, 0, Math.PI / 2);
+  p.lineTo(-x + r, z); p.absarc(-x + r, z - r, r, Math.PI / 2, Math.PI);
+  p.lineTo(-x, -z + r); p.absarc(-x + r, -z + r, r, Math.PI, Math.PI * 1.5);
+  return p;
+}
+// A rounded slab w × h × d with softly bevelled edges, optionally with an open well (for the box walls).
+function slab(w, d, h, r, b, mat, wellW, wellD) {
+  const s = rrect(w - 2 * b, d - 2 * b, Math.max(0.002, r - b));
+  if (wellW) s.holes.push(rrect(wellW + 2 * b, wellD + 2 * b, 0.03 + b, THREE.Path));
+  const g = new THREE.ExtrudeGeometry(s, { depth: h - 2 * b, bevelEnabled: true, bevelThickness: b, bevelSize: b, bevelSegments: 4, curveSegments: 10 });
+  g.translate(0, 0, b); g.rotateX(-Math.PI / 2); addWear(g);
+  const m = new THREE.Mesh(g, mat); m.castShadow = m.receiveShadow = true; return m;
+}
+
+await Promise.race([
+  Promise.all([document.fonts.load('80px "Sorts Mill Goudy"'), document.fonts.load('bold 80px Tinos'), document.fonts.load('60px Arimo')]),
+  new Promise(r => setTimeout(r, 2500)),
+]);
+
+const base = new THREE.Group(); scene.add(base);
+const hide = leather();
+{
+  base.add(slab(W, D, HB, 0.16, 0.035, hide, W - 2 * T, D - 2 * T));
+  const liner = slab(LW, LD, LH, 0.06, 0.02, hide, LW - 2 * LT, LD - 2 * LT);
+  liner.position.y = T; base.add(liner);
+  const floor = new THREE.Mesh(addWear(new THREE.BoxGeometry(W - 2 * T + 0.02, T, D - 2 * T + 0.02)), hide);
+  floor.position.y = T / 2; floor.receiveShadow = true; base.add(floor);
+}
+const baseShadow = contactShadow(W * 1.35, D * 1.45); scene.add(baseShadow);
+
+const CW = LW - 2 * LT - 0.2, CD = LD - 2 * LT - 0.2, CT = 0.035, STACK = 1.5, CR = 0.35;
+{
+  const top = new THREE.MeshStandardMaterial({ color: 0x151515, roughness: 0.7 }), sides = stackSides();  // the next card's black back
+  const g = new THREE.ExtrudeGeometry(rrect(CW, CD, CR), { depth: STACK, bevelEnabled: false, curveSegments: 8 });
+  g.rotateX(-Math.PI / 2);
+  const st = new THREE.Mesh(g, [top, sides]);
+  st.position.y = T; st.castShadow = st.receiveShadow = true; base.add(st);
+}
+
+const lid = new THREE.Group(); scene.add(lid);
+{
+  lid.add(slab(WL, DL, HL, 0.18, 0.04, hide));
+  const title = goldTitle(WL, HL);
+  for (const side of [1, -1]) {
+    const decal = new THREE.Mesh(new THREE.PlaneGeometry(WL, HL), title);
+    decal.position.set(0, HL / 2, side * (DL / 2 + 0.002)); decal.rotation.y = side > 0 ? 0 : Math.PI;
+    lid.add(decal);
+  }
+}
+const lidShadow = contactShadow(WL * 1.35, DL * 1.45); scene.add(lidShadow);
+const LID_CLOSED = new THREE.Vector3(0, HB + 0.008, 0);  // sits on the tray rim with a hairline seam
+const LID_DOWN = new THREE.Vector3(W * 0.5 + WL * 0.5 + 1.6, 0, -1.8);
+
+const blank = paper(CW, CD, null, true), edge = new THREE.MeshStandardMaterial({ color: 0xefeadf, roughness: 0.9 });
+// Card with rounded corners: a thin rounded slab for the edge, with the face and back laid on either side.
+const card = new THREE.Group(); scene.add(card);
+let cardFront, firstOpen = true;
+// Once the card is out it is drawn in its own pass, above a dimming layer that covers the box,
+// lit by lights that move with the camera so it looks the same from every angle.
+const cardScene = new THREE.Scene();
+const cardKey = new THREE.DirectionalLight(0xfff6ea, 1.5), KEY_OFFSET = new THREE.Vector3(-6, 8, 10);
+cardScene.add(cardKey, cardKey.target, new THREE.AmbientLight(0xffffff, 1.9));
+const dimLayer = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBasicMaterial({
+  map: (() => {
+    const c = canvas(256, 256), x = c.getContext("2d"), g = x.createRadialGradient(128, 128, 0, 128, 128, 181);
+    g.addColorStop(0, "rgba(28,28,26,0.45)"); g.addColorStop(1, "rgba(14,14,13,0.8)");
+    x.fillStyle = g; x.fillRect(0, 0, 256, 256); return tex(c, true);
+  })(),
+  transparent: true, depthTest: false, depthWrite: false, toneMapped: false, opacity: 0,
+}));
+const dimScene = new THREE.Scene(); dimScene.add(dimLayer);
+const flatCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+{
+  const body = new THREE.ExtrudeGeometry(rrect(CW, CD, CR), { depth: CT, bevelEnabled: false, curveSegments: 8 });
+  body.translate(0, 0, -CT / 2);
+  // Only the slab's edge is drawn; its flat caps would fight the face and back for the same depth.
+  card.add(new THREE.Mesh(body, [new THREE.MeshBasicMaterial({ visible: false }), edge]));
+  const faceGeo = new THREE.ShapeGeometry(rrect(CW, CD, CR), 8), uv = faceGeo.attributes.uv, pos = faceGeo.attributes.position;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, pos.getX(i) / CW + 0.5, pos.getY(i) / CD + 0.5);
+  const front = cardFront = new THREE.Mesh(faceGeo, paper(CW, CD, TEXT)); front.position.z = CT / 2 + 0.0005;
+  const back = new THREE.Mesh(faceGeo, blank); back.position.z = -CT / 2 - 0.0005; back.rotation.y = Math.PI;
+  card.add(front, back);
+  card.traverse((o) => { o.castShadow = true; });
+}
+const CARD_IN = new THREE.Vector3(0, T + STACK + CT / 2 + 0.002, 0);
+const Q_IN = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));  // face down in the box
+
+/* ---------- framing ---------- */
+// The viewer can orbit: yaw and pitch offsets on top of the default three-quarter view, plus zoom.
+const BASE_YAW = Math.atan2(-0.3, 1), BASE_PITCH = Math.asin(new THREE.Vector3(-0.3, 0.52, 1).normalize().y);
+const orbit = { yaw: 0, pitch: 0, zoom: 1, vYaw: 0, vPitch: 0, card: 1 };  // card: zoom on the drawn card
+// Once the card is out, dragging turns the card instead of the view.
+const spin = { q: new THREE.Quaternion(), vx: 0, vy: 0 }, ID = new THREE.Quaternion();
+const axisUp = new THREE.Vector3(), axisRight = new THREE.Vector3(), qa = new THREE.Quaternion();
+function turnCard(dx, dy) {
+  axisUp.set(0, 1, 0).applyQuaternion(camera.quaternion); axisRight.set(1, 0, 0).applyQuaternion(camera.quaternion);
+  spin.q.premultiply(qa.setFromAxisAngle(axisUp, dx)).premultiply(qa.setFromAxisAngle(axisRight, dy)).normalize();
+}
+const PITCH_MIN = 0.1, PITCH_MAX = 1.35;
+function viewDir() {
+  const p = THREE.MathUtils.clamp(BASE_PITCH + orbit.pitch, PITCH_MIN, PITCH_MAX), y = BASE_YAW + orbit.yaw;
+  return new THREE.Vector3(Math.sin(y) * Math.cos(p), Math.sin(p), Math.cos(y) * Math.cos(p));
+}
+const shots = { closed: { target: new THREE.Vector3(0, 2.2, 0), r: 8.2 }, open: { target: new THREE.Vector3(3.9, 1.6, -0.6), r: 12 } };
+function shotPose(s) {
+  const vf = THREE.MathUtils.degToRad(camera.fov), hf = 2 * Math.atan(Math.tan(vf / 2) * camera.aspect);
+  const d = orbit.zoom * s.r / Math.sin(Math.min(vf, hf) / 2);
+  return { pos: s.target.clone().addScaledVector(viewDir(), d), target: s.target.clone() };
+}
+let A, B, P_UP, P_FRONT, Q_UP, Q_FRONT;
+// The card settles at a slightly different, still readable angle each time it comes out.
+const land = { z: -0.035, x: -0.06, y: 0 };
+function newLanding() {
+  const r = (a) => (Math.random() * 2 - 1) * a;
+  land.z = r(0.06); land.x = -0.04 + r(0.035); land.y = r(0.05);  // at most ~3.5° of twist
+}
+function layout() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  frame();
+}
+function frame() {
+  A = shotPose(shots.closed); B = shotPose(shots.open);
+  // Where the card ends up: square to the open camera, filling most of the view.
+  const vf = THREE.MathUtils.degToRad(camera.fov), th = 2 * Math.tan(vf / 2);
+  const dist = Math.max((CD / 0.56) / th, (CW / 0.8) / (th * camera.aspect));
+  const fwd = B.target.clone().sub(B.pos).normalize();
+  P_FRONT = B.pos.clone().addScaledVector(fwd, dist / orbit.card);
+  const o = new THREE.Object3D(); o.position.copy(P_FRONT); o.lookAt(B.pos); o.rotateZ(land.z); o.rotateX(land.x); o.rotateY(land.y); o.updateMatrixWorld();
+  Q_FRONT = o.quaternion.clone();
+  Q_UP = Q_FRONT.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI * 0.97));
+  P_UP = new THREE.Vector3(0, H + CD / 2 + 0.6, 0.3);
+  pose(time);
+}
+
+/* ---------- animation: one pure function of time, run forward to open and backward to close ---------- */
+const clamp = (v) => Math.min(1, Math.max(0, v));
+const inOut = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const out = (t) => 1 - Math.pow(1 - t, 3);
+const END = 3.55;
+const v = new THREE.Vector3(), q = new THREE.Quaternion();
+function pose(t) {
+  // lid: lift straight up, then swing over and settle on the table to the right
+  const a = out(clamp(t / 0.5)), b = inOut(clamp((t - 0.35) / 0.85));
+  const lifted = LID_CLOSED.y + 3.2 * a;
+  lid.position.set(
+    THREE.MathUtils.lerp(LID_CLOSED.x, LID_DOWN.x, b),
+    THREE.MathUtils.lerp(lifted, LID_DOWN.y, b) + Math.sin(Math.PI * b) * 1.4,
+    THREE.MathUtils.lerp(LID_CLOSED.z, LID_DOWN.z, b));
+  lid.rotation.set(Math.sin(Math.PI * b) * -0.12, -0.32 * b, Math.sin(Math.PI * b) * -0.22);
+  lidShadow.position.set(lid.position.x, 0.006, lid.position.z);
+  lidShadow.rotation.z = lid.rotation.y;
+  lidShadow.material.opacity = clamp(1 - lid.position.y / 2.5) * (b > 0.02 ? 1 : 0);
+
+  // card: rise out of the box, stand up with its back to you, then fly forward and turn
+  // The lid lands at t = 1.2; the card waits half a second before it starts to rise.
+  const c1 = inOut(clamp((t - 1.7) / 0.8)), c2 = inOut(clamp((t - 2.4) / 1.15));
+  v.lerpVectors(CARD_IN, P_UP, c1);
+  q.slerpQuaternions(Q_IN, Q_UP, inOut(clamp((c1 - 0.3) / 0.7)));
+  if (c2 > 0) {
+    v.lerpVectors(P_UP, P_FRONT, c2); v.y += Math.sin(Math.PI * c2) * 1.2;
+    q.slerpQuaternions(Q_UP, Q_FRONT, c2);
+  }
+  card.position.copy(v); card.quaternion.copy(q);
+  if (c2 > 0) card.quaternion.premultiply(qa.slerpQuaternions(ID, spin.q, c2));
+  card.traverse((o) => { o.castShadow = c2 < 0.25; });
+  dimLayer.material.opacity = c2;
+  const isOut = c2 > 0;
+  if (isOut !== (card.parent === cardScene)) (isOut ? cardScene : scene).add(card);
+  document.body.classList.toggle("lit", c2 > 0.5);
+
+  // camera eases out to take in the lid on the table
+  const k = inOut(clamp(t / 1.5));
+  camera.position.lerpVectors(A.pos, B.pos, k);
+  camera.lookAt(v.lerpVectors(A.target, B.target, k));
+}
+
+/* ---------- sound: recordings of the real box, cued to moments in the timeline ---------- */
+const VOLUME = 0.5;  // overall level; the clips themselves are also stored 20 dB down
+const SOUNDS = { "lid-lift": 0.8, "lid-down": 0.9, "card-out": 0.375, "card-back": 0.65, "lid-pickup": 0.6, "lid-close": 0.9 };
+// t is the timeline moment the clip starts; clips start a little early so their loudest moment lands on the action.
+const CUES = [
+  { t: 0, dir: 1, s: "lid-lift" }, { t: 1.6, dir: 1, s: "card-out" }, { t: 1.05, dir: 1, s: "lid-down" },
+  { t: 2.05, dir: -1, s: "card-back" }, { t: 1.45, dir: -1, s: "lid-pickup" }, { t: 1.68, dir: -1, s: "lid-close" },
+];
+let audio = null, muted = false;
+const buffers = {};
+// Download the clips up front so the first click can play them at once.
+const raw = Object.fromEntries(Object.keys(SOUNDS).map((n) => [n, fetch(`sounds2/${n}.mp3`).then((r) => r.arrayBuffer()).catch(() => null)]));
+try { muted = localStorage.getItem("muted") === "1"; } catch (e) {}
+const muteBtn = document.getElementById("mute");
+function showMute() { muteBtn.setAttribute("aria-pressed", muted); muteBtn.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound"); muteBtn.title = muteBtn.getAttribute("aria-label"); }
+showMute();
+muteBtn.addEventListener("click", () => {
+  muted = !muted; showMute();
+  try { localStorage.setItem("muted", muted ? "1" : "0"); } catch (e) {}
+  if (!muted) startAudio();
+});
+function startAudio() {
+  if (audio) { if (audio.state === "suspended") audio.resume(); return; }
+  try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+  for (const name of Object.keys(SOUNDS))
+    buffers[name] = raw[name].then((b) => b && audio.decodeAudioData(b)).catch(() => null);
+}
+function play(name) {
+  if (muted || !audio || !buffers[name]) return;
+  const asked = performance.now();
+  buffers[name].then((buf) => { if (buf && performance.now() - asked < 400) playNow(name, buf); });
+}
+function playNow(name, buf) {
+  const src = audio.createBufferSource(), g = audio.createGain();
+  src.buffer = buf; src.playbackRate.value = 0.96 + Math.random() * 0.08;
+  g.gain.value = VOLUME * SOUNDS[name] * (0.9 + Math.random() * 0.15);
+  let out = src;
+  if (name === "card-out") {  // this clip is bright; take the edge off its top end
+    const lp = audio.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 4500;
+    out = src.connect(lp);
+  }
+  out.connect(g).connect(audio.destination); src.start();
+}
+
+const infoBtn = document.getElementById("info"), about = document.getElementById("about");
+function showAbout(on) {
+  about.hidden = !on; infoBtn.setAttribute("aria-expanded", on);
+  (on ? about : infoBtn).focus?.();
+}
+about.tabIndex = -1;
+infoBtn.addEventListener("click", () => showAbout(about.hidden));
+about.addEventListener("click", () => showAbout(false));
+addEventListener("keydown", (e) => { if (e.key === "Escape" && !about.hidden) showAbout(false); });
+
+let time = 0, dir = 0, open = false, last = performance.now();
+const speed = matchMedia("(prefers-reduced-motion: reduce)").matches ? 3 : 1;
+const said = document.getElementById("said");
+function toggle() {
+  startAudio();
+  spin.vx = spin.vy = 0;
+  open = !open; dir = open ? 1 : -1;
+  if (open) {
+    if (!firstOpen && time === 0) {  // the card is back in the box: swap in a new one before it comes out
+      TEXT = CARDS[drawCard()];
+      const old = cardFront.material;
+      cardFront.material = paper(CW, CD, TEXT);
+      old.map.dispose(); old.dispose();
+    }
+    if (time === 0) { newLanding(); frame(); }
+    firstOpen = false;
+    said.textContent = TEXT;
+  }
+}
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+function boxHit(e) {
+  const r = cv.getBoundingClientRect();
+  ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  return ray.intersectObjects([base, lid], true).length > 0;
+}
+// Drag (or one finger) orbits, wheel or pinch zooms; a press that barely moves is a click.
+const pointers = new Map();
+let dragged = 0, pinch = 0;
+function setPitch(p) { orbit.pitch = THREE.MathUtils.clamp(p, PITCH_MIN - BASE_PITCH, PITCH_MAX - BASE_PITCH); }
+// While the card is out, wheel and pinch zoom the card; otherwise they zoom the view of the box.
+function setZoom(z) {
+  if (open && !dir) orbit.card = THREE.MathUtils.clamp(orbit.card / z, 0.6, 2.4);
+  else orbit.zoom = THREE.MathUtils.clamp(orbit.zoom * z, 0.6, 1.7);
+}
+cv.addEventListener("pointerdown", (e) => {
+  cv.setPointerCapture(e.pointerId); pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 1) dragged = 0;
+  orbit.vYaw = orbit.vPitch = 0;
+});
+cv.addEventListener("pointermove", (e) => {
+  const prev = pointers.get(e.pointerId);
+  if (!prev) { cv.classList.toggle("hot", open || boxHit(e)); return; }
+  const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+  prev.x = e.clientX; prev.y = e.clientY;
+  dragged += Math.abs(dx) + Math.abs(dy);
+  if (pointers.size === 2) {
+    const [p1, p2] = [...pointers.values()], dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+    if (pinch) setZoom(pinch / dist);
+    pinch = dist; frame(); return;
+  }
+  if (dragged > 6 && open && !dir) {
+    cv.classList.add("drag");
+    spin.vx = dx * 0.01; spin.vy = dy * 0.01; turnCard(spin.vx, spin.vy); pose(time);
+  } else if (dragged > 6) {
+    cv.classList.add("drag");
+    orbit.vYaw = -dx * 0.006; orbit.vPitch = dy * 0.005;
+    orbit.yaw += orbit.vYaw; setPitch(orbit.pitch + orbit.vPitch); frame();
+  }
+});
+function release(e) {
+  pointers.delete(e.pointerId); pinch = 0;
+  if (!pointers.size) cv.classList.remove("drag");
+}
+cv.addEventListener("pointerup", release);
+cv.addEventListener("pointercancel", (e) => { release(e); dragged = 99; });
+cv.addEventListener("wheel", (e) => { e.preventDefault(); setZoom(Math.exp(e.deltaY * 0.001)); frame(); }, { passive: false });
+cv.addEventListener("click", (e) => { if (dragged > 6) return; if (open || boxHit(e)) toggle(); });
+cv.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); return; }
+  const step = { ArrowLeft: [0.15, 0], ArrowRight: [-0.15, 0], ArrowUp: [0, 0.1], ArrowDown: [0, -0.1] }[e.key];
+  if (step) { e.preventDefault(); orbit.yaw += step[0]; setPitch(orbit.pitch + step[1]); frame(); }
+});
+addEventListener("resize", layout);
+
+layout();
+renderer.setAnimationLoop((nowMs) => {
+  const dt = Math.min(0.05, (nowMs - last) / 1000); last = nowMs;
+  if (!pointers.size && (Math.abs(orbit.vYaw) > 1e-4 || Math.abs(orbit.vPitch) > 1e-4)) {
+    orbit.yaw += orbit.vYaw; setPitch(orbit.pitch + orbit.vPitch);
+    orbit.vYaw *= 0.92; orbit.vPitch *= 0.92;
+    if (!dir) frame();
+  }
+  if (!pointers.size && (Math.abs(spin.vx) > 1e-4 || Math.abs(spin.vy) > 1e-4)) {
+    turnCard(spin.vx, spin.vy); spin.vx *= 0.93; spin.vy *= 0.93;
+    if (!dir) pose(time);
+  }
+  if (dir) {
+    const prev = time;
+    time = Math.min(END, Math.max(0, time + dir * dt * speed * (dir < 0 ? 1.4 : 1)));
+    for (const c of CUES) if (c.dir === dir && (dir > 0 ? prev <= c.t && time > c.t : prev >= c.t && time < c.t)) play(c.s);
+    pose(time);
+    if (time === END || time === 0) {
+      dir = 0;
+      if (time === 0) { spin.q.identity(); orbit.card = 1; frame(); }
+    }
+  }
+  renderer.clear();
+  renderer.render(scene, camera);
+  if (card.parent === cardScene) {
+    cardKey.position.copy(KEY_OFFSET).applyQuaternion(camera.quaternion).add(camera.position);
+    cardKey.target.position.copy(camera.position).add(camera.getWorldDirection(v).multiplyScalar(30));
+    renderer.render(dimScene, flatCam);
+    renderer.clearDepth();
+    renderer.render(cardScene, camera);
+  }
+});
+</script>
