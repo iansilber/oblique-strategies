@@ -28,39 +28,35 @@ canvas#stage.drag { cursor: grabbing; }
 }
 .top { top: calc(env(safe-area-inset-top, 0px) + 22px); }
 .bottom { bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); }
-#music-toggle {
-  position: fixed; z-index: 2; left: 50%; transform: translateX(-50%);
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
-  width: 44px; height: 44px; display: grid; place-items: center;
-  border: 0; border-radius: 50%; background: transparent;
-  color: var(--muted); cursor: pointer; transition: color .3s, background .3s;
+/* Controls: play, sound and info sit together bottom left; the purchase link sits bottom right. */
+.controls {
+  position: fixed; z-index: 2; display: flex; gap: 4px;
+  left: max(14px, calc(env(safe-area-inset-left, 0px) + 14px));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
 }
-#music-toggle:hover { background: rgba(0,0,0,.06); color: var(--ink); }
-#music-toggle:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-#music-toggle svg { width: 20px; height: 20px; }
+.controls button {
+  width: 40px; height: 40px; display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 50%; background: transparent; cursor: pointer;
+  color: var(--muted); transition: color .3s, background .3s;
+}
+.controls button:hover { background: rgba(0,0,0,.06); color: var(--ink); }
+.controls button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.controls svg { width: 20px; height: 20px; }
 #music-toggle .pause, #music-toggle[aria-pressed="true"] .play { display: none; }
 #music-toggle[aria-pressed="true"] .pause { display: block; }
-body.lit #music-toggle { color: #d8d7d1; }
-#mute {
-  position: fixed; z-index: 2; top: calc(env(safe-area-inset-top, 0px) + 14px); right: max(14px, calc(env(safe-area-inset-right, 0px) + 14px));
-  width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 50%; cursor: pointer;
-  background: transparent; color: var(--muted); transition: color .3s, background .3s;
-}
-#mute:hover { background: rgba(0,0,0,.06); color: var(--ink); }
-#mute:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-#mute svg { width: 20px; height: 20px; }
 #mute .off, #mute[aria-pressed="true"] .on { display: none; }
 #mute[aria-pressed="true"] .off { display: block; }
-body.lit #mute { color: #d8d7d1; }
-#info {
-  position: fixed; z-index: 2; top: calc(env(safe-area-inset-top, 0px) + 14px); left: max(14px, calc(env(safe-area-inset-left, 0px) + 14px));
-  width: 36px; height: 36px; display: grid; place-items: center; border: 0; border-radius: 50%; cursor: pointer;
-  background: transparent; color: var(--muted); transition: color .3s, background .3s;
+#purchase {
+  position: fixed; z-index: 2;
+  right: max(16px, calc(env(safe-area-inset-right, 0px) + 16px));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  height: 40px; display: flex; align-items: center; padding: 0 6px;
+  font-family: var(--serif); font-size: 17px; color: var(--muted); text-decoration: none;
+  transition: color .3s;
 }
-#info:hover { background: rgba(0,0,0,.06); color: var(--ink); }
-#info:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-#info svg { width: 20px; height: 20px; }
-body.lit #info { color: #d8d7d1; }
+#purchase:hover { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+#purchase:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 4px; }
+body.lit .controls button, body.lit #purchase { color: #d8d7d1; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 #fallback[hidden] { display: none; }
 #fallback { position: fixed; inset: 0; display: grid; place-items: center; padding: 24px; font-family: var(--serif); font-size: 22px; text-align: center; }
@@ -68,18 +64,21 @@ body.lit #info { color: #d8d7d1; }
 
 <canvas id="stage" tabindex="0" aria-label="Oblique Strategies box. Press Enter to open it."></canvas>
 <audio id="music" src="sounds/music-for-airports-1-1.m4a" preload="none" loop></audio>
-<button id="music-toggle" type="button" aria-pressed="false" aria-label="Play music" title="Play music">
-  <svg class="play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
-  <svg class="pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 5h4v14H7zM14 5h4v14h-4z"/></svg>
-</button>
+<div class="controls">
+  <button id="music-toggle" type="button" aria-pressed="false" aria-label="Play music" title="Play music">
+    <svg class="play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z"/></svg>
+    <svg class="pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6v12M15 6v12"/></svg>
+  </button>
+  <button id="mute" type="button" aria-pressed="false" aria-label="Mute sound" title="Mute sound">
+    <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
+    <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>
+  </button>
+  <button id="info" type="button" aria-label="About the cards" title="About the cards">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/></svg>
+  </button>
+</div>
 <p class="sr" id="music-status" role="status"></p>
-<button id="info" aria-label="About the cards" title="About the cards">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/></svg>
-</button>
-<button id="mute" aria-pressed="false" aria-label="Mute sound" title="Mute sound">
-  <svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>
-  <svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M16 9.5l5 5M21 9.5l-5 5"/></svg>
-</button>
+<a id="purchase" href="https://www.enoshop.co.uk/product/oblique-strategies" target="_blank" rel="noopener">Purchase</a>
 <p class="sr" id="said" aria-live="polite"></p>
 <div id="fallback" hidden></div>
 
