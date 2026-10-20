@@ -557,14 +557,15 @@ function pose(t) {
 }
 
 /* ---------- sound: recordings of the real box, cued to moments in the timeline ---------- */
-const VOLUME = 0.5;  // overall level; the clips themselves are also stored 20 dB down
+const VOLUME = 1.4;  // overall level; the clips themselves are also stored 20 dB down
+const MUSIC_LEVEL = 0.3;  // keeps the soundtrack about 12 dB under the box sounds
 const SOUNDS = { "lid-lift": 0.8, "lid-down": 0.9, "card-out": 0.375, "card-back": 0.65, "lid-pickup": 0.6, "lid-close": 0.9 };
 // t is the timeline moment the clip starts; clips start a little early so their loudest moment lands on the action.
 const CUES = [
   { t: 0, dir: 1, s: "lid-lift" }, { t: 1.6, dir: 1, s: "card-out" }, { t: 1.05, dir: 1, s: "lid-down" },
   { t: 2.05, dir: -1, s: "card-back" }, { t: 1.45, dir: -1, s: "lid-pickup" }, { t: 1.68, dir: -1, s: "lid-close" },
 ];
-let audio = null, muted = false;
+let audio = null, muted = false, musicRouted = false;
 const buffers = {};
 // Download the clips up front so the first click can play them at once.
 const raw = Object.fromEntries(Object.keys(SOUNDS).map((n) => [n, fetch(`sounds2/${n}.mp3`).then((r) => r.arrayBuffer()).catch(() => null)]));
@@ -587,6 +588,7 @@ musicBtn.addEventListener("click", async () => {
   // Explicit playback also restores sound if the visitor previously muted it.
   muted = false;
   showMute();
+  startAudio();
   try { localStorage.setItem("muted", "0"); } catch (e) {}
   try { await music.play(); }
   catch (e) { musicStatus.textContent = "Music could not play. Please try again."; }
@@ -601,9 +603,19 @@ muteBtn.addEventListener("click", () => {
 });
 function startAudio() {
   if (audio) { if (audio.state === "suspended") audio.resume(); return; }
-  try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+  try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { music.volume = MUSIC_LEVEL; return; }
+  routeMusic();
   for (const name of Object.keys(SOUNDS))
     buffers[name] = raw[name].then((b) => b && audio.decodeAudioData(b)).catch(() => null);
+}
+// Turn the music down through Web Audio, since iOS ignores the element's own volume.
+function routeMusic() {
+  if (musicRouted) return;
+  musicRouted = true;
+  try {
+    const g = audio.createGain(); g.gain.value = MUSIC_LEVEL;
+    audio.createMediaElementSource(music).connect(g).connect(audio.destination);
+  } catch (e) { music.volume = MUSIC_LEVEL; }
 }
 function play(name) {
   if (muted || !audio || !buffers[name]) return;
