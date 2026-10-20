@@ -1,3 +1,7 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Today's Oblique Strategy</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -42,6 +46,11 @@ canvas#stage.drag { cursor: grabbing; }
 .controls button:hover { background: rgba(0,0,0,.06); color: var(--ink); }
 .controls button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .controls svg { width: 20px; height: 20px; }
+@media (pointer: coarse) {
+  .controls button { width: 48px; height: 48px; }
+  .controls svg { width: 24px; height: 24px; }
+  #purchase { height: 48px; font-size: 18px; }
+}
 #music-toggle .pause, #music-toggle[aria-pressed="true"] .play { display: none; }
 #music-toggle[aria-pressed="true"] .pause { display: block; }
 #mute .off, #mute[aria-pressed="true"] .on { display: none; }
