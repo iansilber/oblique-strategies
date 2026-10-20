@@ -205,7 +205,11 @@ function goldTitle(w, h) {
     polygonOffset: true, polygonOffsetFactor: -2, depthWrite: false,
   });
 }
-const TITLE_CARD = {};
+const TITLE_CARD = {}, INTRO_CARD = {};
+const INTRO_TEXT = [
+  "These cards evolved from separate observations of the principles underlying what we were doing. Sometimes they were recognized in retrospect (intellect catching up with intuition), sometimes they were identified as they were happening, sometimes they were formulated.",
+  "They can be used as a pack (a set of possibilities being continuously reviewed in the mind) or by drawing a single card from the shuffled pack when a dilemma occurs in a working situation. In this case the card is trusted even if its appropriateness is quite unclear. They are not final, as new ideas will present themselves, and others will become self-evident.",
+];
 function paper(w, h, face, dark) {
   const W = 1024, H = Math.round(1024 * h / w), c = canvas(W, H), x = c.getContext("2d");
   const id = x.createImageData(W, H), lo = blobNoise(W, H, 60), grit = blobNoise(W, H, 5);
@@ -242,6 +246,29 @@ function paper(w, h, face, dark) {
       y += row.gap * W + row.size * W * 1.15 / 2;
       x.font = f(row.size * W, row.bold); x.fillText(row.t, W / 2, y);
       y += row.size * W * 1.15 / 2;
+    }
+  } else if (face === INTRO_CARD) {
+    // The pack's introduction card: small, widely tracked, justified type.
+    const size = W * 0.0285, lh = size * 1.34, left = W * 0.075, maxW = W - 2 * left;
+    x.font = `${size}px Helvetica, "Helvetica Neue", Arimo, Arial, sans-serif`;
+    x.letterSpacing = `${size * 0.085}px`; x.fillStyle = "#151514"; x.textBaseline = "middle";
+    const lines = [];
+    for (const para of INTRO_TEXT) {
+      let line = [];
+      for (const word of para.split(" ")) {
+        if (line.length && x.measureText([...line, word].join(" ")).width > maxW) { lines.push({ words: line, last: false }); line = []; }
+        line.push(word);
+      }
+      lines.push({ words: line, last: true });
+    }
+    const pg = lh * 0.9;  // blank line between the two paragraphs
+    let y = H / 2 - ((lines.length - 1) * lh + pg) / 2;
+    for (const l of lines) {
+      const widths = l.words.map((w) => x.measureText(w).width), used = widths.reduce((a, b) => a + b, 0);
+      const gap = l.last || l.words.length < 2 ? x.measureText(" ").width : (maxW - used) / (l.words.length - 1);
+      let px = left;
+      l.words.forEach((w, k) => { x.fillText(w, px, y); px += widths[k] + gap; });
+      y += lh + (l.last ? pg : 0);
     }
   } else if (face) {
     const maxW = W * 0.78, maxH = H * 0.62;
@@ -388,19 +415,27 @@ const dimLayer = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), new THREE.MeshBas
 }));
 const dimScene = new THREE.Scene(); dimScene.add(dimLayer);
 const flatCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+const cardBody = new THREE.ExtrudeGeometry(rrect(CW, CD, CR), { depth: CT, bevelEnabled: false, curveSegments: 8 });
+cardBody.translate(0, 0, -CT / 2);
+const faceGeo = new THREE.ShapeGeometry(rrect(CW, CD, CR), 8);
 {
-  const body = new THREE.ExtrudeGeometry(rrect(CW, CD, CR), { depth: CT, bevelEnabled: false, curveSegments: 8 });
-  body.translate(0, 0, -CT / 2);
-  // Only the slab's edge is drawn; its flat caps would fight the face and back for the same depth.
-  card.add(new THREE.Mesh(body, [new THREE.MeshBasicMaterial({ visible: false }), edge]));
-  const faceGeo = new THREE.ShapeGeometry(rrect(CW, CD, CR), 8), uv = faceGeo.attributes.uv, pos = faceGeo.attributes.position;
+  const uv = faceGeo.attributes.uv, pos = faceGeo.attributes.position;
   for (let i = 0; i < uv.count; i++) uv.setXY(i, pos.getX(i) / CW + 0.5, pos.getY(i) / CD + 0.5);
-  const front = cardFront = new THREE.Mesh(faceGeo, paper(CW, CD, TEXT)); front.position.z = CT / 2 + 0.0005;
-  const back = new THREE.Mesh(faceGeo, blank); back.position.z = -CT / 2 - 0.0005; back.rotation.y = Math.PI;
-  card.add(front, back);
-  card.traverse((o) => { o.castShadow = true; });
 }
-const CARD_IN = new THREE.Vector3(0, T + STACK + CT / 2 + 0.002, 0);
+function buildCard(group, faceMat) {
+  // Only the slab's edge is drawn; its flat caps would fight the face and back for the same depth.
+  group.add(new THREE.Mesh(cardBody, [new THREE.MeshBasicMaterial({ visible: false }), edge]));
+  const front = new THREE.Mesh(faceGeo, faceMat); front.position.z = CT / 2 + 0.0005;
+  const back = new THREE.Mesh(faceGeo, blank); back.position.z = -CT / 2 - 0.0005; back.rotation.y = Math.PI;
+  group.add(front, back);
+  group.traverse((o) => { o.castShadow = true; });
+  return front;
+}
+cardFront = buildCard(card, paper(CW, CD, TEXT));
+// The second card, used only for the info draw: the pack's introduction, which comes out behind the title card.
+const card2 = new THREE.Group(); scene.add(card2); card2.visible = false;
+buildCard(card2, paper(CW, CD, INTRO_CARD));
+const CARD_IN = new THREE.Vector3(0, T + STACK + CT / 2 + 0.002, 0), CARD_IN2 = CARD_IN.clone().setY(CARD_IN.y - CT);
 const Q_IN = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0));  // face down in the box
 
 /* ---------- framing ---------- */
@@ -425,7 +460,9 @@ function shotPose(s) {
   const d = orbit.zoom * s.r / Math.sin(Math.min(vf, hf) / 2);
   return { pos: s.target.clone().addScaledVector(viewDir(), d), target: s.target.clone() };
 }
-let A, B, P_UP, P_FRONT, Q_UP, Q_FRONT;
+let A, B, P_UP, P_FRONT, Q_UP, Q_FRONT, P_BACK, Q_BACK, R_SIDE;
+// Info draw: swap goes 0 (title card in front) to 1 (introduction in front).
+const swap = { t: 0, target: 0 };
 // The card settles at a slightly different, still readable angle each time it comes out.
 const land = { z: -0.035, x: -0.06, y: 0 };
 function newLanding() {
@@ -446,8 +483,15 @@ function frame() {
   P_FRONT = B.pos.clone().addScaledVector(fwd, dist / orbit.card);
   const o = new THREE.Object3D(); o.position.copy(P_FRONT); o.lookAt(B.pos); o.rotateZ(land.z); o.rotateX(land.x); o.rotateY(land.y); o.updateMatrixWorld();
   Q_FRONT = o.quaternion.clone();
-  Q_UP = Q_FRONT.clone().multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -Math.PI * 0.97));
-  P_UP = new THREE.Vector3(0, H + CD / 2 + 0.6, 0.3);
+  // The back slot for the info draw: a little further away, down and to the right, at its own slight angle.
+  const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+  const up = new THREE.Vector3().crossVectors(right, fwd);
+  P_BACK = P_FRONT.clone().addScaledVector(fwd, 0.9).addScaledVector(right, 0.55).addScaledVector(up, -0.5);
+  const o2 = new THREE.Object3D(); o2.position.copy(P_BACK); o2.lookAt(B.pos); o2.rotateZ(land.z + 0.045); o2.rotateX(land.x); o2.updateMatrixWorld();
+  Q_BACK = o2.quaternion.clone(); R_SIDE = right;
+  // One continuous turn from face down in the box to facing the camera: the card tips up as it rises, then turns the rest of the way.
+  Q_UP = Q_FRONT.clone();
+  P_UP = new THREE.Vector3(0, H + 1.0, 0.3);
   pose(time);
 }
 
@@ -455,8 +499,37 @@ function frame() {
 const clamp = (v) => Math.min(1, Math.max(0, v));
 const inOut = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 const out = (t) => 1 - Math.pow(1 - t, 3);
-const END = 3.55;
+const END = 3.75;  // leaves room for the second card in the info draw
 const v = new THREE.Vector3(), q = new THREE.Quaternion();
+// Where a card rests once it is out. slot -1: the single random card; 0: title card; 1: introduction.
+// During a swap the front card slides out to the side and goes behind while the other comes forward.
+const sp = new THREE.Vector3(), sq = new THREE.Quaternion();
+function restPose(slot) {
+  if (slot < 0) { sp.copy(P_FRONT); sq.copy(Q_FRONT); return; }
+  const k = inOut(swap.t), toBack = slot === 0 ? k : 1 - k;
+  sp.lerpVectors(P_FRONT, P_BACK, toBack);
+  sq.slerpQuaternions(Q_FRONT, Q_BACK, toBack);
+  if (slot === 0) sp.addScaledVector(R_SIDE, Math.sin(Math.PI * k) * CW * 0.85);
+  else sp.addScaledVector(R_SIDE, -Math.sin(Math.PI * k) * CW * 0.12);
+}
+// Card path: rise out of the box, stand up with its back to you, then fly forward and turn.
+// The lid lands at t = 1.2; the card waits half a second before it starts to rise.
+function placeCard(obj, t, from, slot) {
+  const c1 = inOut(clamp((t - 1.7) / 0.8)), c2 = inOut(clamp((t - 2.4) / 1.15));
+  v.lerpVectors(from, P_UP, c1);
+  q.slerpQuaternions(Q_IN, Q_UP, inOut(clamp((c1 - 0.3) / 0.7)) * 0.2);
+  if (c2 > 0) {
+    restPose(slot);
+    v.lerpVectors(P_UP, sp, c2); v.y += Math.sin(Math.PI * c2) * 1.2;
+    q.slerpQuaternions(qa.slerpQuaternions(Q_IN, Q_UP, 0.2), sq, c2);
+  }
+  obj.position.copy(v); obj.quaternion.copy(q);
+  if (c2 > 0) obj.quaternion.premultiply(qa.slerpQuaternions(ID, spin.q, c2));
+  obj.traverse((o) => { o.castShadow = c2 < 0.25; });
+  if ((c2 > 0) !== (obj.parent === cardScene)) (c2 > 0 ? cardScene : scene).add(obj);
+  return c2;
+}
+let info = false;
 function pose(t) {
   // lid: lift straight up, then swing over and settle on the table to the right
   const a = out(clamp(t / 0.5)), b = inOut(clamp((t - 0.35) / 0.85));
@@ -472,19 +545,9 @@ function pose(t) {
 
   // card: rise out of the box, stand up with its back to you, then fly forward and turn
   // The lid lands at t = 1.2; the card waits half a second before it starts to rise.
-  const c1 = inOut(clamp((t - 1.7) / 0.8)), c2 = inOut(clamp((t - 2.4) / 1.15));
-  v.lerpVectors(CARD_IN, P_UP, c1);
-  q.slerpQuaternions(Q_IN, Q_UP, inOut(clamp((c1 - 0.3) / 0.7)));
-  if (c2 > 0) {
-    v.lerpVectors(P_UP, P_FRONT, c2); v.y += Math.sin(Math.PI * c2) * 1.2;
-    q.slerpQuaternions(Q_UP, Q_FRONT, c2);
-  }
-  card.position.copy(v); card.quaternion.copy(q);
-  if (c2 > 0) card.quaternion.premultiply(qa.slerpQuaternions(ID, spin.q, c2));
-  card.traverse((o) => { o.castShadow = c2 < 0.25; });
+  const c2 = placeCard(card, t, CARD_IN, info ? 0 : -1);
+  if (info) placeCard(card2, t - 0.18, CARD_IN2, 1);
   dimLayer.material.opacity = c2;
-  const isOut = c2 > 0;
-  if (isOut !== (card.parent === cardScene)) (isOut ? cardScene : scene).add(card);
   document.body.classList.toggle("lit", c2 > 0.5);
 
   // camera eases out to take in the lid on the table
@@ -587,6 +650,7 @@ function toggle(kind = "random") {
       if (kind === "info") { setFace(TITLE_CARD); TEXT = "Oblique Strategies. Over one hundred worthwhile dilemmas. Brian Eno and Peter Schmidt."; }
       else if (!firstOpen || showing === "info") { TEXT = CARDS[drawCard()]; setFace(TEXT); }
       showing = kind;
+      info = kind === "info"; card2.visible = info;
     }
     if (time === 0) { newLanding(); frame(); }
     firstOpen = false;
@@ -641,7 +705,11 @@ function release(e) {
 cv.addEventListener("pointerup", release);
 cv.addEventListener("pointercancel", (e) => { release(e); dragged = 99; });
 cv.addEventListener("wheel", (e) => { e.preventDefault(); setZoom(Math.exp(e.deltaY * 0.001)); frame(); }, { passive: false });
-cv.addEventListener("click", (e) => { if (dragged > 6) return; if (open || boxHit(e)) toggle(); });
+cv.addEventListener("click", (e) => {
+  if (dragged > 6) return;
+  if (open && info && !dir && swap.target === 0) { swap.target = 1; play("card-back"); return; }  // tuck the title card behind
+  if (open || boxHit(e)) toggle();
+});
 cv.addEventListener("keydown", (e) => {
   if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); return; }
   const step = { ArrowLeft: [0.15, 0], ArrowRight: [-0.15, 0], ArrowUp: [0, 0.1], ArrowDown: [0, -0.1] }[e.key];
@@ -661,6 +729,10 @@ renderer.setAnimationLoop((nowMs) => {
     turnCard(spin.vx, spin.vy); spin.vx *= 0.93; spin.vy *= 0.93;
     if (!dir) pose(time);
   }
+  if (swap.t !== swap.target) {
+    swap.t = swap.target > swap.t ? Math.min(swap.target, swap.t + dt / 0.75) : Math.max(swap.target, swap.t - dt / 0.75);
+    if (!dir) pose(time);
+  }
   if (dir) {
     const prev = time;
     time = Math.min(END, Math.max(0, time + dir * dt * speed * (dir < 0 ? 1.4 : 1)));
@@ -668,7 +740,7 @@ renderer.setAnimationLoop((nowMs) => {
     pose(time);
     if (time === END || time === 0) {
       dir = 0;
-      if (time === 0) { spin.q.identity(); orbit.card = 1; frame(); if (pendingInfo) { pendingInfo = false; toggle("info"); } }
+      if (time === 0) { spin.q.identity(); orbit.card = 1; swap.t = swap.target = 0; frame(); if (pendingInfo) { pendingInfo = false; toggle("info"); } }
     }
   }
   renderer.clear();
